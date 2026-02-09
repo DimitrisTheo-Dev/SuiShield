@@ -143,7 +143,7 @@ Copy the deployed package id into `NEXT_PUBLIC_SUI_PACKAGE_ID`.
 
 ## Hackathon Compliance Checklist
 
-- [x] New repo requirement documented with post-2026-01-27 first commit command.
+- [x] New repo requirement documented with post-2026-01-27 first commit command (first commit is 9th of Feb).
 - [x] Move contract uses Move 2024 syntax (`contracts/suishield_attestation/Move.toml`).
 - [x] Uses latest official Sui SDK package names (`@mysten/sui`, `@mysten/dapp-kit-react`, `@mysten/dapp-kit-core`).
 - [x] Functional web routes and demo-capable scan flow.
