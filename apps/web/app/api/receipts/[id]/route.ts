@@ -25,6 +25,7 @@ export async function GET(_request: Request, { params }: RouteProps) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch receipt';
-    return NextResponse.json({ error: message }, { status: 400 });
+    const status = message.toLowerCase().includes('storage misconfigured') ? 500 : 400;
+    return NextResponse.json({ error: message }, { status });
   }
 }

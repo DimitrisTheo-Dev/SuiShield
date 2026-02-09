@@ -27,6 +27,13 @@ export type AttestationRefInput = {
 const memoryReceipts = new Map<string, StoredReceipt>();
 const memoryAttestations = new Map<string, AttestationRefInput>();
 let warnedMemoryFallback = false;
+const isProduction = process.env.NODE_ENV === 'production';
+const STORAGE_CONFIG_ERROR =
+  'Storage misconfigured: set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, and SUPABASE_SECRET_KEY.';
+
+function allowMemoryFallback(): boolean {
+  return !isProduction;
+}
 
 function warnMemoryFallback(): void {
   if (warnedMemoryFallback) return;
@@ -57,6 +64,10 @@ function memoryInsertReceipt(receipt: ReceiptV1): StoredReceipt {
 
 export async function insertReceipt(receipt: ReceiptV1): Promise<StoredReceipt> {
   if (!hasSupabaseAdminCredentials()) {
+    if (!allowMemoryFallback()) {
+      throw new Error(STORAGE_CONFIG_ERROR);
+    }
+
     warnMemoryFallback();
     return memoryInsertReceipt(receipt);
   }
@@ -90,6 +101,10 @@ export async function getReceiptById(id: string): Promise<StoredReceipt | null> 
   const readClient = getSupabasePublicClient() ?? (hasSupabaseAdminCredentials() ? getSupabaseAdminClient() : null);
 
   if (!readClient) {
+    if (!allowMemoryFallback()) {
+      throw new Error(STORAGE_CONFIG_ERROR);
+    }
+
     return memoryReceipts.get(id) ?? null;
   }
 
@@ -104,6 +119,10 @@ export async function getReceiptById(id: string): Promise<StoredReceipt | null> 
 
 export async function insertAttestationRef(input: AttestationRefInput): Promise<void> {
   if (!hasSupabaseAdminCredentials()) {
+    if (!allowMemoryFallback()) {
+      throw new Error(STORAGE_CONFIG_ERROR);
+    }
+
     warnMemoryFallback();
     memoryAttestations.set(`${input.receipt_id}:${input.object_id}`, input);
     return;
@@ -121,6 +140,10 @@ export async function getAttestationRefsForReceipt(receiptId: string): Promise<A
   const readClient = getSupabasePublicClient() ?? (hasSupabaseAdminCredentials() ? getSupabaseAdminClient() : null);
 
   if (!readClient) {
+    if (!allowMemoryFallback()) {
+      throw new Error(STORAGE_CONFIG_ERROR);
+    }
+
     const refs = Array.from(memoryAttestations.values()).filter((entry) => entry.receipt_id === receiptId);
     return refs;
   }

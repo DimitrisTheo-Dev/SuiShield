@@ -45,6 +45,7 @@ const scanInputSchema = z.object({
 
 function toStatusCode(message: string): number {
   const lower = message.toLowerCase();
+  if (lower.includes('storage misconfigured')) return 500;
   if (message.includes('timed out')) return 408;
   if (message.includes('exceeds')) return 413;
   if (lower.includes('rate limit')) return 429;

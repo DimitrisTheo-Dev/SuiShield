@@ -36,7 +36,7 @@ export function ScanForm() {
         body: JSON.stringify({
           repo_url: repoUrl,
           package_path: packagePath,
-          commit_sha: commitSha || undefined,
+          commit_sha: demoMode ? undefined : commitSha || undefined,
           demo_mode: demoMode,
         }),
       });
@@ -125,7 +125,7 @@ export function ScanForm() {
                 setDemoMode(true);
                 setRepoUrl('demo://suishield/fixture');
                 setPackagePath('demo_move_package');
-                setCommitSha('fixture-demo-commit');
+                setCommitSha('');
               }}
             >
               Deterministic Demo Scan
