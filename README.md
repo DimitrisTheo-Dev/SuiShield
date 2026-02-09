@@ -2,9 +2,7 @@
 
 SuiShield is a deterministic Move package scanner for Sui Track: it scans a GitHub Move package snapshot at a specific commit, produces a stable JSON receipt with reproducible hashes, and optionally anchors the receipt hash on Sui via a Move 2024 attestation object.
 
-Live URL: `https://YOUR-VERCEL-DEPLOYMENT.vercel.app`
-
-Demo Video URL: `https://YOUR-DEMO-VIDEO-URL`
+Live URL: `sui-shield-hackathon.vercel.app`
 
 ## Quickstart Checklist
 
