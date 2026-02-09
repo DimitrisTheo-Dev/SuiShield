@@ -1,0 +1,10 @@
+[package]
+name = "suishield_attestation"
+edition = "2024"
+published-at = "0x0"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
+
+[addresses]
+suishield_attestation = "0x0"

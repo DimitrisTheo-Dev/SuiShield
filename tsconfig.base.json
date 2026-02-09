@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@suishield/receipt": ["packages/receipt/src/index.ts"],
+      "@suishield/scanner": ["packages/scanner/src/index.ts"],
+      "@suishield/ui/*": ["packages/ui/src/*"]
+    }
+  }
+}

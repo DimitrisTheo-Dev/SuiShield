@@ -1,0 +1,12 @@
+{
+  "name": "@suishield/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "echo 'contracts package build: no-op'",
+    "lint": "echo 'contracts lint: no-op'",
+    "typecheck": "echo 'contracts typecheck: no-op'",
+    "test": "echo 'contracts test: no-op'",
+    "contract:build": "sui move build"
+  }
+}

@@ -1,0 +1,10 @@
+[package]
+name = "DemoRiskyPackage"
+edition = "2024"
+version = "0.0.1"
+
+[addresses]
+demo = "0x0"
+
+[dependencies]
+Sui = { local = "../../../../contracts/suishield_attestation/sources" }

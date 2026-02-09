@@ -1,0 +1,260 @@
+{
+  "version": "suishield-ruleset-2026-01-27",
+  "rules": [
+    {
+      "id": "SS001",
+      "severity": "high",
+      "title": "Public transfer call in module",
+      "description": "Direct public transfer patterns should be reviewed for authorization checks.",
+      "kind": "substring",
+      "pattern": "transfer::public_transfer",
+      "applies_to": "move",
+      "remediation": "Gate transfer paths with explicit capability or role checks."
+    },
+    {
+      "id": "SS002",
+      "severity": "medium",
+      "title": "Shared object publication",
+      "description": "Sharing objects expands write surface and needs access control review.",
+      "kind": "substring",
+      "pattern": "transfer::share_object",
+      "applies_to": "move",
+      "remediation": "Validate ownership and lifecycle constraints before sharing."
+    },
+    {
+      "id": "SS003",
+      "severity": "high",
+      "title": "Treasury capability usage",
+      "description": "Treasury capability operations can mint or manage supply-sensitive assets.",
+      "kind": "substring",
+      "pattern": "coin::TreasuryCap",
+      "applies_to": "move",
+      "remediation": "Restrict treasury operations to tightly controlled flows."
+    },
+    {
+      "id": "SS004",
+      "severity": "medium",
+      "title": "Admin capability struct detected",
+      "description": "Capability structs should have careful creation and transfer paths.",
+      "kind": "regex",
+      "pattern": "struct\\s+\\w*(Admin|Cap)\\w*\\s+has",
+      "flags": "i",
+      "applies_to": "move",
+      "remediation": "Document capability ownership and non-forgeability assumptions."
+    },
+    {
+      "id": "SS005",
+      "severity": "medium",
+      "title": "Public entry function with signer context",
+      "description": "Public entry functions should validate caller expectations and side effects.",
+      "kind": "regex",
+      "pattern": "public\\s+entry\\s+fun\\s+",
+      "applies_to": "move",
+      "remediation": "Add guard conditions and invariants for each public entry path."
+    },
+    {
+      "id": "SS006",
+      "severity": "low",
+      "title": "Event emission in entry flow",
+      "description": "Event payloads may leak sensitive state if not curated.",
+      "kind": "substring",
+      "pattern": "event::emit",
+      "applies_to": "move",
+      "remediation": "Ensure emitted data is intentional and non-sensitive."
+    },
+    {
+      "id": "SS007",
+      "severity": "high",
+      "title": "Clock usage for access timing",
+      "description": "Time-based logic can be bypassed if assumptions around timestamp drift are weak.",
+      "kind": "substring",
+      "pattern": "clock::timestamp_ms",
+      "applies_to": "move",
+      "remediation": "Define acceptable timing windows and fallback paths."
+    },
+    {
+      "id": "SS008",
+      "severity": "medium",
+      "title": "Dynamic field write detected",
+      "description": "Dynamic fields can hide object graph complexity and authorization gaps.",
+      "kind": "substring",
+      "pattern": "dynamic_field::add",
+      "applies_to": "move",
+      "remediation": "Constrain dynamic key namespace and mutation privileges."
+    },
+    {
+      "id": "SS009",
+      "severity": "medium",
+      "title": "Object deletion path",
+      "description": "Object deletion can create denial or accounting mismatches.",
+      "kind": "substring",
+      "pattern": "object::delete",
+      "applies_to": "move",
+      "remediation": "Require explicit ownership and lifecycle checks before deletion."
+    },
+    {
+      "id": "SS010",
+      "severity": "high",
+      "title": "Unsafe unwrap-like pattern",
+      "description": "Abort-prone unwrap patterns can be used for griefing in public entry paths.",
+      "kind": "substring",
+      "pattern": "option::destroy_some",
+      "applies_to": "move",
+      "remediation": "Handle optional values with graceful control-flow branches."
+    },
+    {
+      "id": "SS011",
+      "severity": "medium",
+      "title": "Sender address used directly",
+      "description": "Direct sender checks can be brittle without role abstraction.",
+      "kind": "substring",
+      "pattern": "tx_context::sender",
+      "applies_to": "move",
+      "remediation": "Prefer capability-based authorization where practical."
+    },
+    {
+      "id": "SS012",
+      "severity": "low",
+      "title": "Potential broad assert usage",
+      "description": "Asserts should have meaningful error codes and contextual documentation.",
+      "kind": "regex",
+      "pattern": "assert!\\s*\\(",
+      "applies_to": "move",
+      "remediation": "Use explicit error constants and test failure branches."
+    },
+    {
+      "id": "SS013",
+      "severity": "medium",
+      "title": "Mutable global state candidate",
+      "description": "Shared mutable state increases race and consistency complexity.",
+      "kind": "regex",
+      "pattern": "has\\s+key",
+      "applies_to": "move",
+      "remediation": "Document mutation authority and invariants on key objects."
+    },
+    {
+      "id": "SS014",
+      "severity": "medium",
+      "title": "Potential unrestricted mint call",
+      "description": "Mint functions should be tightly controlled.",
+      "kind": "regex",
+      "pattern": "coin::mint",
+      "applies_to": "move",
+      "remediation": "Require explicit mint authority checks and cap limits."
+    },
+    {
+      "id": "SS015",
+      "severity": "low",
+      "title": "Vector push in loop candidate",
+      "description": "Unbounded vector growth paths may impact gas reliability.",
+      "kind": "substring",
+      "pattern": "vector::push_back",
+      "applies_to": "move",
+      "remediation": "Cap loop lengths or bound user-provided collections."
+    },
+    {
+      "id": "SS016",
+      "severity": "medium",
+      "title": "Public package function",
+      "description": "Public functions should have clear trust boundary documentation.",
+      "kind": "regex",
+      "pattern": "public\\s+fun\\s+",
+      "applies_to": "move",
+      "remediation": "Mark internal helpers private when not externally required."
+    },
+    {
+      "id": "SS017",
+      "severity": "low",
+      "title": "Debug statement candidate",
+      "description": "Debug statements are usually removed from production flows.",
+      "kind": "regex",
+      "pattern": "(debug::|println!)",
+      "applies_to": "move",
+      "remediation": "Remove debug output before production deployment."
+    },
+    {
+      "id": "SS018",
+      "severity": "high",
+      "title": "Potential direct transfer call",
+      "description": "Transfer calls should be paired with authorization checks and tests.",
+      "kind": "regex",
+      "pattern": "transfer::transfer",
+      "applies_to": "move",
+      "remediation": "Audit transfer call sites for explicit access restrictions."
+    },
+    {
+      "id": "SS019",
+      "severity": "medium",
+      "title": "Move.toml missing edition 2024",
+      "description": "Move package should explicitly declare edition 2024 for compatibility.",
+      "kind": "substring",
+      "pattern": "edition = \"2024\"",
+      "applies_to": "manifest",
+      "negate": true,
+      "remediation": "Set `edition = \"2024\"` under `[package]`."
+    },
+    {
+      "id": "SS020",
+      "severity": "low",
+      "title": "Move.toml missing package name",
+      "description": "Package metadata should include a clear name.",
+      "kind": "substring",
+      "pattern": "name =",
+      "applies_to": "manifest",
+      "negate": true,
+      "remediation": "Add package name in Move.toml `[package]` section."
+    },
+    {
+      "id": "SS021",
+      "severity": "low",
+      "title": "Move.toml missing package version",
+      "description": "Package metadata should include semantic version information.",
+      "kind": "substring",
+      "pattern": "version =",
+      "applies_to": "manifest",
+      "negate": true,
+      "remediation": "Add package version in Move.toml `[package]` section."
+    },
+    {
+      "id": "SS022",
+      "severity": "medium",
+      "title": "HTTP dependency URL",
+      "description": "Dependency URLs should use secure transport.",
+      "kind": "regex",
+      "pattern": "git\\s*=\\s*\"http://",
+      "applies_to": "manifest",
+      "remediation": "Use `https://` for dependency git URLs."
+    },
+    {
+      "id": "SS023",
+      "severity": "medium",
+      "title": "Friend function exposure",
+      "description": "Friend-based access needs explicit trust assumptions.",
+      "kind": "regex",
+      "pattern": "friend\\s+",
+      "applies_to": "move",
+      "remediation": "Document and minimize friend relationships."
+    },
+    {
+      "id": "SS024",
+      "severity": "high",
+      "title": "Potential unchecked arithmetic",
+      "description": "Arithmetic in critical paths should handle overflow/underflow assumptions.",
+      "kind": "regex",
+      "pattern": "\\s[+\-*/]\\s",
+      "applies_to": "move",
+      "remediation": "Review arithmetic expressions in state-changing logic."
+    },
+    {
+      "id": "SS025",
+      "severity": "low",
+      "title": "TODO marker in contract code",
+      "description": "TODO markers may indicate unfinished security-critical logic.",
+      "kind": "regex",
+      "pattern": "TODO|FIXME|HACK",
+      "flags": "i",
+      "applies_to": "move",
+      "remediation": "Resolve TODO items or track them explicitly before release."
+    }
+  ]
+}

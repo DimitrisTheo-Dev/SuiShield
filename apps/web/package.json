@@ -1,0 +1,41 @@
+{
+  "name": "@suishield/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'web tests are covered by package tests'"
+  },
+  "dependencies": {
+    "@mysten/dapp-kit-core": "latest",
+    "@mysten/dapp-kit-react": "latest",
+    "@mysten/sui": "latest",
+    "@radix-ui/react-slot": "^1.1.1",
+    "@suishield/receipt": "workspace:*",
+    "@suishield/scanner": "workspace:*",
+    "@suishield/ui": "workspace:*",
+    "@supabase/supabase-js": "^2.48.1",
+    "@tanstack/react-query": "^5.64.2",
+    "class-variance-authority": "^0.7.1",
+    "lucide-react": "^0.469.0",
+    "next": "^15.1.8",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "^15.1.8",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3"
+  }
+}

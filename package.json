@@ -1,0 +1,23 @@
+{
+  "name": "suishield",
+  "private": true,
+  "version": "0.1.0",
+  "description": "SuiShield hackathon submission monorepo",
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "dev": "pnpm --filter @suishield/web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "contract:build": "pnpm --filter @suishield/contracts contract:build",
+    "sdk:versions": "tsx scripts/write-sdk-versions.ts",
+    "submission:check": "tsx scripts/submission_check.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}
