@@ -13,6 +13,9 @@ const MAX_TOTAL_LINES_SCANNED = 50_000;
 const MAX_FINDINGS = 400;
 const FETCH_TIMEOUT_MS = 15_000;
 const SCAN_TIMEOUT_MS = 45_000;
+const MAX_GITHUB_RETRIES = 2;
+const RETRY_BASE_DELAY_MS = 500;
+const RETRYABLE_GITHUB_STATUS = new Set([429, 500, 502, 503, 504]);
 
 const RuleSchema = z.object({
   id: z.string().min(1),
@@ -76,6 +79,34 @@ class ScanError extends Error {
   }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function summarizeHttpBody(body: string): string {
+  const normalized = body.replace(/\s+/g, ' ').trim();
+  if (!normalized) return 'No response body';
+  if (/<\s*(?:!doctype|html|head|body)/i.test(normalized)) {
+    return 'Upstream returned an HTML error page';
+  }
+
+  return normalized.slice(0, 200);
+}
+
+function isRetryableFetchError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const lower = error.message.toLowerCase();
+  return (
+    lower.includes('timed out') ||
+    lower.includes('fetch failed') ||
+    lower.includes('network') ||
+    lower.includes('socket') ||
+    lower.includes('econnreset') ||
+    lower.includes('enotfound') ||
+    lower.includes('eai_again')
+  );
+}
+
 function createTimeoutSignal(timeoutMs: number): { signal: AbortSignal; cleanup: () => void } {
   const controller = new AbortController();
   const timer = setTimeout(() => {
@@ -108,6 +139,56 @@ async function fetchWithTimeout(
   } finally {
     timeout.cleanup();
   }
+}
+
+async function fetchGitHubWithRetry(
+  url: string,
+  init: RequestInit,
+  context: string,
+): Promise<Response> {
+  for (let attempt = 0; attempt <= MAX_GITHUB_RETRIES; attempt += 1) {
+    let response: Response;
+
+    try {
+      response = await fetchWithTimeout(url, init, FETCH_TIMEOUT_MS, context);
+    } catch (error) {
+      const retryable = isRetryableFetchError(error);
+      if (retryable && attempt < MAX_GITHUB_RETRIES) {
+        await sleep(RETRY_BASE_DELAY_MS * (attempt + 1));
+        continue;
+      }
+
+      if (retryable) {
+        throw new ScanError('GitHub is temporarily unavailable. Please retry in a few seconds.');
+      }
+
+      throw error;
+    }
+
+    if (response.ok) {
+      return response;
+    }
+
+    const body = await response.text();
+    const retryableStatus = RETRYABLE_GITHUB_STATUS.has(response.status);
+
+    if (retryableStatus && attempt < MAX_GITHUB_RETRIES) {
+      await sleep(RETRY_BASE_DELAY_MS * (attempt + 1));
+      continue;
+    }
+
+    if (response.status === 429) {
+      throw new ScanError('GitHub API rate limit reached (429). Please retry shortly.');
+    }
+
+    if (retryableStatus) {
+      throw new ScanError(`GitHub is temporarily unavailable (${response.status}). Please retry.`);
+    }
+
+    throw new ScanError(`${context} failed (${response.status}): ${summarizeHttpBody(body)}`);
+  }
+
+  throw new ScanError('GitHub request failed after retries.');
 }
 
 async function withTimeout<T>(work: Promise<T>, timeoutMs: number, context: string): Promise<T> {
@@ -163,7 +244,7 @@ function parseGitHubUrl(rawUrl: string): { owner: string; repo: string } {
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetchWithTimeout(
+  const response = await fetchGitHubWithRetry(
     url,
     {
       headers: {
@@ -171,14 +252,8 @@ async function fetchJson<T>(url: string): Promise<T> {
         'User-Agent': 'SuiShield-Scanner/1.0',
       },
     },
-    FETCH_TIMEOUT_MS,
     `GitHub API request (${url})`,
   );
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new ScanError(`GitHub API request failed (${response.status}): ${text.slice(0, 200)}`);
-  }
 
   return (await response.json()) as T;
 }
@@ -216,7 +291,7 @@ async function resolveCommit(owner: string, repo: string, explicitRef?: string):
 
 async function fetchZipball(owner: string, repo: string, commitSha: string): Promise<Uint8Array> {
   const zipUrl = `https://api.github.com/repos/${owner}/${repo}/zipball/${commitSha}`;
-  const response = await fetchWithTimeout(
+  const response = await fetchGitHubWithRetry(
     zipUrl,
     {
       headers: {
@@ -225,14 +300,8 @@ async function fetchZipball(owner: string, repo: string, commitSha: string): Pro
       },
       redirect: 'follow',
     },
-    FETCH_TIMEOUT_MS,
     `GitHub zipball fetch (${zipUrl})`,
   );
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new ScanError(`Failed to fetch repository zipball (${response.status}): ${text.slice(0, 200)}`);
-  }
 
   const headerSize = response.headers.get('content-length');
   if (headerSize && Number(headerSize) > MAX_ZIP_BYTES) {

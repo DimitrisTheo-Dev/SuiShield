@@ -44,8 +44,11 @@ const scanInputSchema = z.object({
 });
 
 function toStatusCode(message: string): number {
+  const lower = message.toLowerCase();
   if (message.includes('timed out')) return 408;
   if (message.includes('exceeds')) return 413;
+  if (lower.includes('rate limit')) return 429;
+  if (lower.includes('temporarily unavailable')) return 503;
   return 400;
 }
 
