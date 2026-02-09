@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
 import { z } from 'zod';
 import { computeRulesetHash, type Finding, type ReceiptV1, withComputedHashes } from '@suishield/receipt';
+import { EMBEDDED_DEMO_FIXTURE, EMBEDDED_RULESET_RAW } from './embedded-assets';
 
 const MAX_ZIP_BYTES = 20 * 1024 * 1024;
 const MAX_FILES = 500;
@@ -417,9 +418,17 @@ function scoreFromFindings(findings: Finding[]): {
 }
 
 async function loadRuleset(): Promise<{ raw: string; parsed: z.infer<typeof RulesetSchema> }> {
-  const raw = await readFile(RULESET_PATH, 'utf8');
-  const parsed = RulesetSchema.parse(JSON.parse(raw));
-  return { raw, parsed };
+  try {
+    const raw = await readFile(RULESET_PATH, 'utf8');
+    const parsed = RulesetSchema.parse(JSON.parse(raw));
+    return { raw, parsed };
+  } catch {
+    const parsed = RulesetSchema.parse(JSON.parse(EMBEDDED_RULESET_RAW));
+    return {
+      raw: EMBEDDED_RULESET_RAW,
+      parsed,
+    };
+  }
 }
 
 function filterFilesForRule(files: ScannableFile[], rule: Rule): ScannableFile[] {
@@ -542,15 +551,21 @@ export async function scanGitHubMovePackage(input: ScanInput): Promise<ScanOutpu
 async function loadLocalFixtureFiles(rootPath: string): Promise<Map<string, string>> {
   const files = new Map<string, string>();
 
-  const manifestPath = path.join(rootPath, 'Move.toml');
-  files.set('demo_move_package/Move.toml', normalizeText(await readFile(manifestPath, 'utf8')));
+  try {
+    const manifestPath = path.join(rootPath, 'Move.toml');
+    files.set('demo_move_package/Move.toml', normalizeText(await readFile(manifestPath, 'utf8')));
 
-  const sourceDir = path.join(rootPath, 'sources');
-  const sourceFiles = await readFile(path.join(sourceDir, 'risk_demo.move'), 'utf8');
-  files.set('demo_move_package/sources/risk_demo.move', normalizeText(sourceFiles));
+    const sourceDir = path.join(rootPath, 'sources');
+    const sourceFiles = await readFile(path.join(sourceDir, 'risk_demo.move'), 'utf8');
+    files.set('demo_move_package/sources/risk_demo.move', normalizeText(sourceFiles));
 
-  const helperFiles = await readFile(path.join(sourceDir, 'safe_helpers.move'), 'utf8');
-  files.set('demo_move_package/sources/safe_helpers.move', normalizeText(helperFiles));
+    const helperFiles = await readFile(path.join(sourceDir, 'safe_helpers.move'), 'utf8');
+    files.set('demo_move_package/sources/safe_helpers.move', normalizeText(helperFiles));
+  } catch {
+    files.set('demo_move_package/Move.toml', normalizeText(EMBEDDED_DEMO_FIXTURE.moveToml));
+    files.set('demo_move_package/sources/risk_demo.move', normalizeText(EMBEDDED_DEMO_FIXTURE.riskDemoMove));
+    files.set('demo_move_package/sources/safe_helpers.move', normalizeText(EMBEDDED_DEMO_FIXTURE.safeHelpersMove));
+  }
 
   return files;
 }
