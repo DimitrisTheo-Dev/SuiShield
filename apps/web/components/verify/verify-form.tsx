@@ -35,12 +35,27 @@ export function VerifyForm() {
     setError(null);
     try {
       const response = await fetch(`/api/receipts/${receiptId.trim()}`);
-      const payload = (await response.json()) as { receipt?: unknown; error?: string };
+      const payload = (await response.json()) as {
+        receipt?: Record<string, unknown>;
+        attestations?: Array<{ network: string; object_id: string; tx_digest: string; issuer: string }>;
+        error?: string;
+      };
       if (!response.ok || !payload.receipt) {
         throw new Error(payload.error ?? 'Receipt not found');
       }
 
-      setReceiptJson(JSON.stringify(payload.receipt, null, 2));
+      const enrichedReceipt = { ...payload.receipt };
+      const firstAttestation = payload.attestations?.[0];
+      if (firstAttestation) {
+        enrichedReceipt.attestation = {
+          network: firstAttestation.network,
+          object_id: firstAttestation.object_id,
+          tx_digest: firstAttestation.tx_digest,
+          issuer: firstAttestation.issuer,
+        };
+      }
+
+      setReceiptJson(JSON.stringify(enrichedReceipt, null, 2));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load receipt');
     }

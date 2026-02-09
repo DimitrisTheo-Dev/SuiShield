@@ -7,6 +7,6 @@
     "lint": "echo 'contracts lint: no-op'",
     "typecheck": "echo 'contracts typecheck: no-op'",
     "test": "echo 'contracts test: no-op'",
-    "contract:build": "sui move build"
+    "contract:build": "sui client switch --env testnet >/dev/null && sui move build"
   }
 }

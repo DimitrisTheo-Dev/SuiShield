@@ -4,6 +4,12 @@ node_modules
 coverage
 dist
 out
+*.tsbuildinfo
+contracts/**/build
+contracts/**/Move.lock
+contracts/**/Published.toml
+.idea/*
+!.idea/.gitignore
 .env
 .env.local
 .env.*.local

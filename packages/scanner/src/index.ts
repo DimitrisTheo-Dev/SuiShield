@@ -8,7 +8,10 @@ import { computeRulesetHash, type Finding, type ReceiptV1, withComputedHashes } 
 const MAX_ZIP_BYTES = 20 * 1024 * 1024;
 const MAX_FILES = 500;
 const MAX_FILTERED_BYTES = 10 * 1024 * 1024;
+const MAX_TOTAL_LINES_SCANNED = 50_000;
 const MAX_FINDINGS = 400;
+const FETCH_TIMEOUT_MS = 15_000;
+const SCAN_TIMEOUT_MS = 45_000;
 
 const RuleSchema = z.object({
   id: z.string().min(1),
@@ -72,6 +75,55 @@ class ScanError extends Error {
   }
 }
 
+function createTimeoutSignal(timeoutMs: number): { signal: AbortSignal; cleanup: () => void } {
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  return {
+    signal: controller.signal,
+    cleanup: () => clearTimeout(timer),
+  };
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  context: string,
+): Promise<Response> {
+  const timeout = createTimeoutSignal(timeoutMs);
+  const signal = init.signal ? AbortSignal.any([init.signal, timeout.signal]) : timeout.signal;
+
+  try {
+    return await fetch(url, { ...init, signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new ScanError(`${context} timed out after ${timeoutMs}ms`);
+    }
+
+    throw error;
+  } finally {
+    timeout.cleanup();
+  }
+}
+
+async function withTimeout<T>(work: Promise<T>, timeoutMs: number, context: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<T>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(new ScanError(`${context} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([work, timeoutPromise]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 function normalizePackagePath(packagePath: string): string {
   const trimmed = packagePath.trim().replace(/^\/+|\/+$/g, '');
   if (!trimmed) throw new ScanError('package_path is required');
@@ -110,12 +162,17 @@ function parseGitHubUrl(rawUrl: string): { owner: string; repo: string } {
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      'User-Agent': 'SuiShield-Scanner/1.0',
+  const response = await fetchWithTimeout(
+    url,
+    {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'SuiShield-Scanner/1.0',
+      },
     },
-  });
+    FETCH_TIMEOUT_MS,
+    `GitHub API request (${url})`,
+  );
 
   if (!response.ok) {
     const text = await response.text();
@@ -158,13 +215,18 @@ async function resolveCommit(owner: string, repo: string, explicitRef?: string):
 
 async function fetchZipball(owner: string, repo: string, commitSha: string): Promise<Uint8Array> {
   const zipUrl = `https://api.github.com/repos/${owner}/${repo}/zipball/${commitSha}`;
-  const response = await fetch(zipUrl, {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      'User-Agent': 'SuiShield-Scanner/1.0',
+  const response = await fetchWithTimeout(
+    zipUrl,
+    {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'SuiShield-Scanner/1.0',
+      },
+      redirect: 'follow',
     },
-    redirect: 'follow',
-  });
+    FETCH_TIMEOUT_MS,
+    `GitHub zipball fetch (${zipUrl})`,
+  );
 
   if (!response.ok) {
     const text = await response.text();
@@ -219,6 +281,11 @@ async function fetchGitHubSnapshot(input: ScanInput): Promise<Snapshot> {
   };
 }
 
+function countLines(content: string): number {
+  if (content.length === 0) return 0;
+  return content.split('\n').length;
+}
+
 function selectPackageFiles(files: Map<string, string>, packagePath: string): ScannableFile[] {
   const normalizedPath = normalizePackagePath(packagePath);
   const prefix = `${normalizedPath}/`;
@@ -257,7 +324,15 @@ function selectPackageFiles(files: Map<string, string>, packagePath: string): Sc
     throw new ScanError(`No .move files found under '${normalizedPath}/sources'`);
   }
 
-  return [...manifestFiles, ...moveFiles].sort((a, b) => a.path.localeCompare(b.path));
+  const selected = [...manifestFiles, ...moveFiles].sort((a, b) => a.path.localeCompare(b.path));
+  const totalLines = selected.reduce((sum, file) => sum + countLines(file.content), 0);
+  if (totalLines > MAX_TOTAL_LINES_SCANNED) {
+    throw new ScanError(
+      `Filtered package has ${totalLines} lines which exceeds ${MAX_TOTAL_LINES_SCANNED} line limit`,
+    );
+  }
+
+  return selected;
 }
 
 function isSafeRegex(pattern: string): boolean {
@@ -454,8 +529,14 @@ async function scanFromSnapshot(snapshot: Snapshot, packagePath: string): Promis
 }
 
 export async function scanGitHubMovePackage(input: ScanInput): Promise<ScanOutput> {
-  const snapshot = await fetchGitHubSnapshot(input);
-  return scanFromSnapshot(snapshot, input.package_path);
+  return withTimeout(
+    (async () => {
+      const snapshot = await fetchGitHubSnapshot(input);
+      return scanFromSnapshot(snapshot, input.package_path);
+    })(),
+    SCAN_TIMEOUT_MS,
+    'Scan operation',
+  );
 }
 
 async function loadLocalFixtureFiles(rootPath: string): Promise<Map<string, string>> {
@@ -475,15 +556,21 @@ async function loadLocalFixtureFiles(rootPath: string): Promise<Map<string, stri
 }
 
 export async function scanDemoFixture(): Promise<ScanOutput> {
-  const files = await loadLocalFixtureFiles(DEMO_FIXTURE_PATH);
-  const snapshot: Snapshot = {
-    repo_url: 'demo://suishield/fixture',
-    commit_sha: 'fixture-demo-commit',
-    commit_timestamp_ms: 1767225600000,
-    files,
-  };
+  return withTimeout(
+    (async () => {
+      const files = await loadLocalFixtureFiles(DEMO_FIXTURE_PATH);
+      const snapshot: Snapshot = {
+        repo_url: 'demo://suishield/fixture',
+        commit_sha: 'fixture-demo-commit',
+        commit_timestamp_ms: 1767225600000,
+        files,
+      };
 
-  return scanFromSnapshot(snapshot, 'demo_move_package');
+      return scanFromSnapshot(snapshot, 'demo_move_package');
+    })(),
+    SCAN_TIMEOUT_MS,
+    'Demo scan operation',
+  );
 }
 
 export function summarizeFindings(findings: Finding[]): string {
@@ -491,5 +578,14 @@ export function summarizeFindings(findings: Finding[]): string {
   for (const finding of findings) counts[finding.severity] += 1;
   return `high:${counts.high} medium:${counts.medium} low:${counts.low} total:${findings.length}`;
 }
+
+export const SCANNER_LIMITS = Object.freeze({
+  max_zip_bytes: MAX_ZIP_BYTES,
+  max_files: MAX_FILES,
+  max_filtered_bytes: MAX_FILTERED_BYTES,
+  max_total_lines_scanned: MAX_TOTAL_LINES_SCANNED,
+  fetch_timeout_ms: FETCH_TIMEOUT_MS,
+  scan_timeout_ms: SCAN_TIMEOUT_MS,
+});
 
 export { ScanError };

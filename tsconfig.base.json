@@ -13,6 +13,7 @@
     "paths": {
       "@suishield/receipt": ["packages/receipt/src/index.ts"],
       "@suishield/scanner": ["packages/scanner/src/index.ts"],
+      "@suishield/ui": ["packages/ui/src/index.ts"],
       "@suishield/ui/*": ["packages/ui/src/*"]
     }
   }

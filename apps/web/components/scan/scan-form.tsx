@@ -8,8 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 
 const DEMO_VALUES = {
-  repo_url: 'https://github.com/MystenLabs/sui',
-  package_path: 'crates/sui-framework/packages/sui-framework',
+  repo_url: 'https://github.com/sui-foundation/sui-move-intro-course',
+  package_path: 'unit-five/example_projects/flashloan',
   commit_sha: '',
 };
 
@@ -138,6 +138,12 @@ export function ScanForm() {
               ? 'Demo mode scans a local fixture package so judges can always reproduce the flow.'
               : 'GitHub mode fetches an exact snapshot zipball and scans only your package_path.'}
           </div>
+
+          {!demoMode ? (
+            <p className="text-xs text-muted-foreground">
+              Limits: zip ≤ 20MB, files ≤ 500, filtered bytes ≤ 10MB, scanned lines ≤ 50,000, scan timeout 45s.
+            </p>
+          ) : null}
 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
 

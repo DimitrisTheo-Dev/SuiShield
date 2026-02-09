@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { type ReceiptV1 } from '@suishield/receipt';
 import { hasSupabaseAdminCredentials } from './env';
-import { getSupabaseAdminClient } from './supabase';
+import { getSupabaseAdminClient, getSupabasePublicClient } from './supabase';
 
 export type StoredReceipt = {
   id: string;
@@ -26,6 +26,15 @@ export type AttestationRefInput = {
 
 const memoryReceipts = new Map<string, StoredReceipt>();
 const memoryAttestations = new Map<string, AttestationRefInput>();
+let warnedMemoryFallback = false;
+
+function warnMemoryFallback(): void {
+  if (warnedMemoryFallback) return;
+  warnedMemoryFallback = true;
+  console.warn(
+    '[SuiShield] Supabase admin credentials missing. Using in-memory storage fallback; data is not persistent.',
+  );
+}
 
 function memoryInsertReceipt(receipt: ReceiptV1): StoredReceipt {
   const id = randomUUID();
@@ -48,6 +57,7 @@ function memoryInsertReceipt(receipt: ReceiptV1): StoredReceipt {
 
 export async function insertReceipt(receipt: ReceiptV1): Promise<StoredReceipt> {
   if (!hasSupabaseAdminCredentials()) {
+    warnMemoryFallback();
     return memoryInsertReceipt(receipt);
   }
 
@@ -77,12 +87,13 @@ export async function insertReceipt(receipt: ReceiptV1): Promise<StoredReceipt> 
 }
 
 export async function getReceiptById(id: string): Promise<StoredReceipt | null> {
-  if (!hasSupabaseAdminCredentials()) {
+  const readClient = getSupabasePublicClient() ?? (hasSupabaseAdminCredentials() ? getSupabaseAdminClient() : null);
+
+  if (!readClient) {
     return memoryReceipts.get(id) ?? null;
   }
 
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase.from('receipts').select('*').eq('id', id).maybeSingle();
+  const { data, error } = await readClient.from('receipts').select('*').eq('id', id).maybeSingle();
 
   if (error) {
     throw new Error(`Failed to fetch receipt: ${error.message}`);
@@ -93,6 +104,7 @@ export async function getReceiptById(id: string): Promise<StoredReceipt | null> 
 
 export async function insertAttestationRef(input: AttestationRefInput): Promise<void> {
   if (!hasSupabaseAdminCredentials()) {
+    warnMemoryFallback();
     memoryAttestations.set(`${input.receipt_id}:${input.object_id}`, input);
     return;
   }
@@ -106,13 +118,14 @@ export async function insertAttestationRef(input: AttestationRefInput): Promise<
 }
 
 export async function getAttestationRefsForReceipt(receiptId: string): Promise<AttestationRefInput[]> {
-  if (!hasSupabaseAdminCredentials()) {
+  const readClient = getSupabasePublicClient() ?? (hasSupabaseAdminCredentials() ? getSupabaseAdminClient() : null);
+
+  if (!readClient) {
     const refs = Array.from(memoryAttestations.values()).filter((entry) => entry.receipt_id === receiptId);
     return refs;
   }
 
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
+  const { data, error } = await readClient
     .from('attestation_refs')
     .select('*')
     .eq('receipt_id', receiptId)

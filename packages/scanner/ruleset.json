@@ -241,7 +241,7 @@
       "title": "Potential unchecked arithmetic",
       "description": "Arithmetic in critical paths should handle overflow/underflow assumptions.",
       "kind": "regex",
-      "pattern": "\\s[+\-*/]\\s",
+      "pattern": "\\s[+\\-*/]\\s",
       "applies_to": "move",
       "remediation": "Review arithmetic expressions in state-changing logic."
     },

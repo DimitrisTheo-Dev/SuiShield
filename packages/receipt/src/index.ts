@@ -127,7 +127,9 @@ export function payloadWithoutHashes(receipt: ReceiptV1 | ReceiptHashPayload): R
 }
 
 async function sha256Browser(input: Uint8Array): Promise<string> {
-  const hashBuffer = await crypto.subtle.digest('SHA-256', input);
+  const normalized = new Uint8Array(input.byteLength);
+  normalized.set(input);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', normalized);
   const bytes = new Uint8Array(hashBuffer);
   return Array.from(bytes)
     .map((byte) => byte.toString(16).padStart(2, '0'))

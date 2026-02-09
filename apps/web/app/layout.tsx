@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Space_Grotesk, IBM_Plex_Mono } from 'next/font/google';
+import type { ReactNode } from 'react';
 import { Providers } from '@/components/layout/providers';
 import { SiteHeader } from '@/components/layout/site-header';
 import './globals.css';
@@ -24,11 +25,11 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
     <html lang="en">
-      <body className={`${sans.variable} ${mono.variable} font-sans antialiased`}>
+      <body suppressHydrationWarning={true} className={`${sans.variable} ${mono.variable} font-sans antialiased`}>
         <Providers>
           <SiteHeader />
           <main>{children}</main>
